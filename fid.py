@@ -159,6 +159,35 @@ def ref(dataset_path, dest_path, batch):
 
 #----------------------------------------------------------------------------
 
+# written by sqa, for eval fid for two fid ref
+
+@main.command()
+@click.option('--edm_path', 'dest_path',    help='edm ref', metavar='NPZ',    type=str, required=True)
+@click.option('--sqa_ref', 'ref_path',      help='my calculated ref', metavar='NPZ|URL',    type=str, required=True)
+
+def sqa(dest_path, ref_path):
+    """Calculate FID for a given set of images."""
+    torch.multiprocessing.set_start_method('spawn')
+    dist.init()
+
+    dist.print0(f'Loading dataset reference statistics from "{ref_path}"...')
+    ref = None
+    if dist.get_rank() == 0:
+        with dnnlib.util.open_url(ref_path) as f:
+            ref = dict(np.load(f))
+
+    dist.print0(f'Loading dataset reference statistics from "{dest_path}"...')
+    edm = None
+    if dist.get_rank() == 0:
+        with dnnlib.util.open_url(dest_path) as f:
+            edm = dict(np.load(f))
+
+    dist.print0('Calculating FID...')
+    if dist.get_rank() == 0:
+        fid = calculate_fid_from_inception_stats(edm['mu'], edm['sigma'], ref['mu'], ref['sigma'])
+        print(f'{fid:g}')
+    torch.distributed.barrier()
+
 if __name__ == "__main__":
     main()
 
