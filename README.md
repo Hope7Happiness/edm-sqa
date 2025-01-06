@@ -1,16 +1,6 @@
 ## EDM repo
 documentation by sqa
 
-## Requirements (By EDM)
-
-* 64-bit Python 3.8 and PyTorch 1.12.0 (or later). 
-* Python libraries: See [environment.yml](./environment.yml) for exact library dependencies. You can use the following commands with Miniconda3 to create and activate your Python environment:
-  - `conda env create -f environment.yml -n edm`
-  - `conda activate edm`
-* Docker users:
-  - Ensure you have correctly installed the [NVIDIA container runtime](https://docs.docker.com/config/containers/resource_constraints/#gpu).
-  - Use the [provided Dockerfile](./Dockerfile) to build an image with the required library dependencies.
-
 ## Preparing datasets
 
 **AFHQv2:** 
@@ -78,6 +68,45 @@ torchrun --standalone --nproc_per_node=1 fid.py sqa --edm_path=https://nvlabs-fi
 ```
 
 the result should be about 3e-6.
+
+## Env
+
+```.bash
+conda env create -f environment-H100.yml
+
+conda activate edm-H100
+```
+
+__sanity__: try run
+
+```.bash
+torchrun --standalone --nproc_per_node=1 train.py --outdir=training-runs \
+    --data=datasets/afhqv2-64x64.zip --cond=0 --arch=ddpmpp --batch=4 --cres=1,2,2,2 --lr=2e-4 --dropout=0.25 --augment=0.15 --tick=1
+```
+
+其中有可能要更改
+1. torch version: 需要支持 H100. 现有的脚本是符合4090的.
+2. numpy version: 需要和torch兼容, 反正就反复调一下重新搞个环境.
+
+直到出现
+```.bash
+model.dec.64x64_block1    541952      -        [2, 128, 64, 64]  float32 
+model.dec.64x64_block2    541952      -        [2, 128, 64, 64]  float32 
+model.dec.64x64_block3    541952      -        [2, 128, 64, 64]  float32 
+model.dec.64x64_block4    541952      -        [2, 128, 64, 64]  float32 
+model.dec.64x64_aux_norm  256         -        [2, 128, 64, 64]  float32 
+model.dec.64x64_aux_conv  3459        -        [2, 3, 64, 64]    float32 
+model                     1152        -        [2, 3, 64, 64]    float32 
+<top-level>               -           -        [2, 3, 64, 64]    float32 
+---                       ---         ---      ---               ---     
+Total                     61805571    48       -                 -       
+
+Setting up optimizer...
+Training for 200000 kimg...
+
+tick 0     kimg 0.0       time 12s          sec/tick 4.5     sec/kimg 2272.16 maintenance 7.4    cpumem 3.05   gpumem 9.34   reserved 12.68
+```
+就说明成功了!
 
 ## Training new models
 
