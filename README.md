@@ -27,7 +27,7 @@ unzip ./download/afhq_v2.zip -d ./download/afhqv2/
 
 Then hopefully you will see `/train` and `/test` under `./download/afhqv2/`.
 
-4. preprocess into 64x64
+4. preprocess into 64x64 and calculate FID ref:
 
 ```.bash
 python dataset_tool.py --source=downloads/afhqv2 \
@@ -56,7 +56,13 @@ torchrun --standalone --nproc_per_node=1 fid.py sqa --edm_path=https://nvlabs-fi
 
 the result should be about 5e-6.
 
-**FFHQ:** Download the [Flickr-Faces-HQ dataset](https://github.com/NVlabs/ffhq-dataset) as 1024x1024 images and convert to ZIP archive at 64x64 resolution:
+**FFHQ:** 
+
+1. follow the instructions in `https://github.com/qiaosungithub/ffhq-sqa.git`, and we get a folder `\images1024x1024`.
+
+2. Move the folder to `downloads/ffhq/images1024x1024`.
+
+3. preprocess into 64x64 and calculate FID ref:
 
 ```.bash
 python dataset_tool.py --source=downloads/ffhq/images1024x1024 \
@@ -64,13 +70,31 @@ python dataset_tool.py --source=downloads/ffhq/images1024x1024 \
 python fid.py ref --data=datasets/ffhq-64x64.zip --dest=fid-refs/ffhq-64x64.npz
 ```
 
+4. eval the FID for two different refs (our calculated and edm provided)
+
+```.bash
+torchrun --standalone --nproc_per_node=1 fid.py sqa --edm_path=https://nvlabs-fi-cdn.nvidia.com/edm/fid-refs/ffhq-64x64.npz \
+    --sqa_ref=fid-refs/ffhq-64x64.npz
+```
+
+the result should be about 3e-6.
+
 ## Training new models
 
 **AFHQv2 64x64:** 
 
+run **VP**:
+
 ```.bash
 torchrun --standalone --nproc_per_node=8 train.py --outdir=training-runs \
     --data=datasets/afhqv2-64x64.zip --cond=0 --arch=ddpmpp --batch=256 --cres=1,2,2,2 --lr=2e-4 --dropout=0.25 --augment=0.15
+```
+
+run **VE**:
+
+```.bash
+torchrun --standalone --nproc_per_node=8 train.py --outdir=training-runs \
+    --data=datasets/afhqv2-64x64.zip --cond=0 --arch=ncsnpp --batch=256 --cres=1,2,2,2 --lr=2e-4 --dropout=0.25 --augment=0.15
 ```
 
 __For evaluating FID__: in the command below, change `--network` to the path of the latest network snapshot in the training directory.
@@ -86,6 +110,37 @@ torchrun --standalone --nproc_per_node=1 generate.py --steps=40 --outdir=fid-tmp
 # Calculate FID
 torchrun --standalone --nproc_per_node=1 fid.py calc --images=fid-tmp \
     --ref=fid-refs/afhqv2-64x64.npz
+```
+
+**FFHQ 64x64:** 
+
+run **VP**:
+
+```.bash
+torchrun --standalone --nproc_per_node=8 train.py --outdir=training-runs \
+    --data=datasets/ffhq-64x64.zip --cond=0 --arch=ddpmpp --batch=256 --cres=1,2,2,2 --lr=2e-4 --dropout=0.05 --augment=0.15
+```
+
+run **VE**:
+
+```.bash
+torchrun --standalone --nproc_per_node=8 train.py --outdir=training-runs \
+    --data=datasets/ffhq-64x64.zip --cond=0 --arch=ncsnpp --batch=256 --cres=1,2,2,2 --lr=2e-4 --dropout=0.05 --augment=0.15
+```
+
+__For evaluating FID__: in the command below, change `--network` to the path of the latest network snapshot in the training directory.
+
+```.bash
+rm -rf fid-tmp
+mkdir fid-tmp
+
+# Generate 50000 images and save them as fid-tmp/*/*.png
+torchrun --standalone --nproc_per_node=1 generate.py --steps=40 --outdir=fid-tmp --seeds=0-49999 --subdirs \
+    --network=network-snapshot-*.pkl
+
+# Calculate FID
+torchrun --standalone --nproc_per_node=1 fid.py calc --images=fid-tmp \
+    --ref=fid-refs/ffhq-64x64.npz
 ```
 
 Here are documentations by edm repo:
