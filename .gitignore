@@ -2,3 +2,4 @@ downloads/
 **__pycache__/
 fid-tmp/
 datasets/
+training-runs/
