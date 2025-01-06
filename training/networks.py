@@ -385,6 +385,7 @@ class DhariwalUNet(torch.nn.Module):
         dropout             = 0.10,         # List of resolutions with self-attention.
         label_dropout       = 0,            # Dropout probability of class labels for classifier-free guidance.
     ):
+        raise NotADirectoryError("incorrect UNet")
         super().__init__()
         self.label_dropout = label_dropout
         emb_channels = model_channels * channel_mult_emb
@@ -479,6 +480,7 @@ class VPPrecond(torch.nn.Module):
         model_type      = 'SongUNet',   # Class name of the underlying model.
         **model_kwargs,                 # Keyword arguments for the underlying model.
     ):
+        raise DeprecationWarning
         super().__init__()
         self.img_resolution = img_resolution
         self.img_channels = img_channels
@@ -536,6 +538,7 @@ class VEPrecond(torch.nn.Module):
         model_type      = 'SongUNet',   # Class name of the underlying model.
         **model_kwargs,                 # Keyword arguments for the underlying model.
     ):
+        raise DeprecationWarning
         super().__init__()
         self.img_resolution = img_resolution
         self.img_channels = img_channels
@@ -581,6 +584,7 @@ class iDDPMPrecond(torch.nn.Module):
         model_type      = 'DhariwalUNet',   # Class name of the underlying model.
         **model_kwargs,                     # Keyword arguments for the underlying model.
     ):
+        raise DeprecationWarning
         super().__init__()
         self.img_resolution = img_resolution
         self.img_channels = img_channels
