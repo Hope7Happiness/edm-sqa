@@ -58,6 +58,7 @@ def parse_int_list(s):
 @click.option('--dropout',       help='Dropout probability', metavar='FLOAT',                       type=click.FloatRange(min=0, max=1), default=0.13, show_default=True)
 @click.option('--augment',       help='Augment probability', metavar='FLOAT',                       type=click.FloatRange(min=0, max=1), default=0.12, show_default=True)
 @click.option('--xflip',         help='Enable dataset x-flips', metavar='BOOL',                     type=bool, default=False, show_default=True)
+@click.option('--notime',           help='Remove time condition', metavar='BOOL',                      type=bool, default=False, show_default=True)
 
 # Performance-related.
 @click.option('--fp16',          help='Enable mixed-precision training', metavar='BOOL',            type=bool, default=False, show_default=True)
@@ -123,6 +124,9 @@ def main(**kwargs):
         raise NotADirectoryError("arch must be ddpmpp or ncsnpp")
         assert opts.arch == 'adm'
         c.network_kwargs.update(model_type='DhariwalUNet', model_channels=192, channel_mult=[1,2,3,4])
+
+    if opts.notime:
+        c.network_kwargs.update(embedding_type='zero')
 
     # Preconditioning & loss function.
     if opts.precond == 'vp':

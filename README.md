@@ -12,10 +12,10 @@ documentation by sqa
 3. Run
 
 ```.bash
-unzip ./download/afhq_v2.zip -d ./download/afhqv2/
+unzip ./downloads/afhq_v2.zip -d ./downloads/afhqv2/
 ```
 
-Then hopefully you will see `/train` and `/test` under `./download/afhqv2/`.
+Then hopefully you will see `/train` and `/test` under `./downloads/afhqv2/`.
 
 4. preprocess into 64x64 and calculate FID ref:
 
@@ -125,6 +125,8 @@ run **VE**:
 torchrun --standalone --nproc_per_node=8 train.py --outdir=training-runs \
     --data=datasets/afhqv2-64x64.zip --cond=0 --arch=ncsnpp --batch=256 --cres=1,2,2,2 --lr=2e-4 --dropout=0.25 --augment=0.15
 ```
+
+__no time condition experiment__: add argument `--notime==True`.
 
 __For evaluating FID__: in the command below, change `--network` to the path of the latest network snapshot in the training directory.
 

@@ -220,6 +220,18 @@ class FourierEmbedding(torch.nn.Module):
         return x
 
 #----------------------------------------------------------------------------
+# zero embedding by sqa
+
+@persistence.persistent_class
+class ZeroEmbedding(torch.nn.Module):
+    def __init__(self, num_channels, scale=16):
+        super().__init__()
+        self.num_channels = num_channels
+
+    def forward(self, x):
+        return torch.zeros(x.shape[0], self.num_channels, device=x.device)
+
+#----------------------------------------------------------------------------
 # Reimplementation of the DDPM++ and NCSN++ architectures from the paper
 # "Score-Based Generative Modeling through Stochastic Differential
 # Equations". Equivalent to the original implementation by Song et al.,
@@ -248,9 +260,11 @@ class SongUNet(torch.nn.Module):
         decoder_type        = 'standard',   # Decoder architecture: 'standard' for both DDPM++ and NCSN++.
         resample_filter     = [1,1],        # Resampling filter: [1,1] for DDPM++, [1,3,3,1] for NCSN++.
     ):
-        assert embedding_type in ['fourier', 'positional']
+        assert embedding_type in ['fourier', 'positional', 'zero']
         assert encoder_type in ['standard', 'skip', 'residual']
         assert decoder_type in ['standard', 'skip']
+
+        print(f"embedding_type: {embedding_type}")
 
         super().__init__()
         self.label_dropout = label_dropout
@@ -266,7 +280,15 @@ class SongUNet(torch.nn.Module):
         )
 
         # Mapping.
-        self.map_noise = PositionalEmbedding(num_channels=noise_channels, endpoint=True) if embedding_type == 'positional' else FourierEmbedding(num_channels=noise_channels)
+        ## noise map
+        if embedding_type == 'positional':
+            self.map_noise = PositionalEmbedding(num_channels=noise_channels, end_point=True)
+        elif embedding_type == 'fourier':
+            self.map_noise = FourierEmbedding(num_channels=noise_channels)
+        elif embedding_type == 'zero':
+            self.map_noise = ZeroEmbedding(num_channels=noise_channels)
+        else:
+            raise ValueError(f'Invalid embedding type "{embedding_type}"')
         self.map_label = Linear(in_features=label_dim, out_features=noise_channels, **init) if label_dim else None
         self.map_augment = Linear(in_features=augment_dim, out_features=noise_channels, bias=False, **init) if augment_dim else None
         self.map_layer0 = Linear(in_features=noise_channels, out_features=emb_channels, **init)
