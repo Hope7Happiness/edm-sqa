@@ -281,8 +281,9 @@ class SongUNet(torch.nn.Module):
 
         # Mapping.
         ## noise map
+        # self.map_noise = PositionalEmbedding(num_channels=noise_channels, endpoint=True) if embedding_type == 'positional' else FourierEmbedding(num_channels=noise_channels)
         if embedding_type == 'positional':
-            self.map_noise = PositionalEmbedding(num_channels=noise_channels, end_point=True)
+            self.map_noise = PositionalEmbedding(num_channels=noise_channels, endpoint=True)
         elif embedding_type == 'fourier':
             self.map_noise = FourierEmbedding(num_channels=noise_channels)
         elif embedding_type == 'zero':
