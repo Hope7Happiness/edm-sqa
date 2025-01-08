@@ -128,14 +128,14 @@ torchrun --standalone --nproc_per_node=8 train.py --outdir=training-runs \
 
 __no time condition experiment__: add argument `--notime==True`.
 
-__For sanity FID__: in the command below, change `--network` to the path of the latest network snapshot in the training directory.
+__For sanity check__: in the command below, change `--network` to the path of the latest network snapshot in the training directory.
 
 ```.bash
 rm -rf fid-tmp
 mkdir fid-tmp
 
 torchrun --standalone --nproc_per_node=1 generate.py --steps=40 --outdir=fid-tmp --seeds=0-9 --subdirs \
-    --network=network-snapshot-*.pkl
+    --network=training-runs/<name_of_exp>/network-snapshot-*.pkl
 ```
 
 __For evaluating FID__: in the command below, change `--network` to the path of the latest network snapshot in the training directory.
@@ -145,11 +145,11 @@ rm -rf fid-tmp
 mkdir fid-tmp
 
 # Generate 50000 images and save them as fid-tmp/*/*.png
-torchrun --standalone --nproc_per_node=1 generate.py --steps=40 --outdir=fid-tmp --seeds=0-49999 --subdirs \
-    --network=network-snapshot-*.pkl
+torchrun --standalone --nproc_per_node=8 generate.py --steps=40 --outdir=fid-tmp --seeds=0-49999 --subdirs \
+    --network=training-runs/<name_of_exp>/network-snapshot-*.pkl
 
 # Calculate FID
-torchrun --standalone --nproc_per_node=1 fid.py calc --images=fid-tmp \
+torchrun --standalone --nproc_per_node=8 fid.py calc --images=fid-tmp \
     --ref=fid-refs/afhqv2-64x64.npz
 ```
 
@@ -169,6 +169,16 @@ torchrun --standalone --nproc_per_node=8 train.py --outdir=training-runs \
     --data=datasets/ffhq-64x64.zip --cond=0 --arch=ncsnpp --batch=256 --cres=1,2,2,2 --lr=2e-4 --dropout=0.05 --augment=0.15
 ```
 
+__For sanity check__: in the command below, change `--network` to the path of the latest network snapshot in the training directory.
+
+```.bash
+rm -rf fid-tmp
+mkdir fid-tmp
+
+torchrun --standalone --nproc_per_node=1 generate.py --steps=40 --outdir=fid-tmp --seeds=0-9 --subdirs \
+    --network=training-runs/<name_of_exp>/network-snapshot-*.pkl
+```
+
 __For evaluating FID__: in the command below, change `--network` to the path of the latest network snapshot in the training directory.
 
 ```.bash
@@ -176,16 +186,16 @@ rm -rf fid-tmp
 mkdir fid-tmp
 
 # Generate 50000 images and save them as fid-tmp/*/*.png
-torchrun --standalone --nproc_per_node=1 generate.py --steps=40 --outdir=fid-tmp --seeds=0-49999 --subdirs \
-    --network=network-snapshot-*.pkl
+torchrun --standalone --nproc_per_node=8 generate.py --steps=40 --outdir=fid-tmp --seeds=0-49999 --subdirs \
+    --network=training-runs/<name_of_exp>/network-snapshot-*.pkl
 
 # Calculate FID
-torchrun --standalone --nproc_per_node=1 fid.py calc --images=fid-tmp \
+torchrun --standalone --nproc_per_node=8 fid.py calc --images=fid-tmp \
     --ref=fid-refs/ffhq-64x64.npz
 ```
 
 Here are documentations by edm repo:
 
-The above example uses the default batch size of 512 images (controlled by `--batch`) that is divided evenly among 8 GPUs (controlled by `--nproc_per_node`) to yield 64 images per GPU. Training large models may run out of GPU memory; the best way to avoid this is to limit the per-GPU batch size, e.g., `--batch-gpu=32`. This employs gradient accumulation to yield the same results as using full per-GPU batches. See [`python train.py --help`](./docs/train-help.txt) for the full list of options.
+Default batch size: 512 (controlled by `--batch`) that is divided evenly among 8 GPUs (controlled by `--nproc_per_node`) to yield 64 images per GPU. If GPU OOM, use `--batch-gpu=32`. This will lead to exactly the same result.
 
 The results of each training run are saved to a newly created directory, for example `training-runs/00000-cifar10-cond-ddpmpp-edm-gpus8-batch64-fp32`. The training loop exports network snapshots (`network-snapshot-*.pkl`) and training states (`training-state-*.pt`) at regular intervals (controlled by `--snap` and `--dump`). The network snapshots can be used to generate images with `generate.py`, and the training states can be used to resume the training later on (`--resume`). Other useful information is recorded in `log.txt` and `stats.jsonl`. To monitor training convergence, we recommend looking at the training loss (`"Loss/loss"` in `stats.jsonl`) as well as periodically evaluating FID for `network-snapshot-*.pkl` using `generate.py` and `fid.py`.
