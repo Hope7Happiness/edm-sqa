@@ -110,7 +110,7 @@ tick 0     kimg 0.0       time 12s          sec/tick 4.5     sec/kimg 2272.16 ma
 
 ## Training new models
 
-**AFHQv2 64x64:** 
+### AFHQv2 64x64:
 
 run **VP**:
 
@@ -128,6 +128,16 @@ torchrun --standalone --nproc_per_node=8 train.py --outdir=training-runs \
 
 __no time condition experiment__: add argument `--notime==True`.
 
+__For sanity FID__: in the command below, change `--network` to the path of the latest network snapshot in the training directory.
+
+```.bash
+rm -rf fid-tmp
+mkdir fid-tmp
+
+torchrun --standalone --nproc_per_node=1 generate.py --steps=40 --outdir=fid-tmp --seeds=0-9 --subdirs \
+    --network=network-snapshot-*.pkl
+```
+
 __For evaluating FID__: in the command below, change `--network` to the path of the latest network snapshot in the training directory.
 
 ```.bash
@@ -143,7 +153,7 @@ torchrun --standalone --nproc_per_node=1 fid.py calc --images=fid-tmp \
     --ref=fid-refs/afhqv2-64x64.npz
 ```
 
-**FFHQ 64x64:** 
+### FFHQ 64x64:
 
 run **VP**:
 
