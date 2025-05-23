@@ -3,3 +3,4 @@ downloads/
 fid-tmp/
 datasets/
 training-runs/
+fid-refs/
