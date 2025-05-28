@@ -77,6 +77,7 @@ def parse_int_list(s):
 @click.option('--transfer',      help='Transfer learning from network pickle', metavar='PKL|URL',   type=str)
 @click.option('--resume',        help='Resume from previous training state', metavar='PT',          type=str)
 @click.option('-n', '--dry-run', help='Print training options and exit',                            is_flag=True)
+@click.option('--useneptune',       help='Use neptune', metavar='BOOL', type=bool, default=True, show_default=True)
 
 def main(**kwargs):
     """Train diffusion-based generative model using the techniques described in the
@@ -201,6 +202,8 @@ def main(**kwargs):
         cur_run_id = max(prev_run_ids, default=-1) + 1
         c.run_dir = os.path.join(opts.outdir, f'{cur_run_id:05d}-{desc}')
         assert not os.path.exists(c.run_dir)
+        
+    c.use_neptune = opts.useneptune
 
     # Print options.
     dist.print0()

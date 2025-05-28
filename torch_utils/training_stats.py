@@ -17,6 +17,15 @@ import dnnlib
 
 from . import misc
 
+def get_rank():
+    return torch.distributed.get_rank() if torch.distributed.is_initialized() else 0
+
+def zero_only(func):
+    def wrapper(*args, **kwargs):
+        if get_rank() == 0:
+            func(*args, **kwargs)
+    return wrapper
+
 #----------------------------------------------------------------------------
 
 _num_moments    = 3             # [num_scalars, sum_of_scalars, sum_of_squares]
@@ -29,6 +38,19 @@ _counters       = dict()        # Running counters on each device, updated by re
 _cumulative     = dict()        # Cumulative counters on the CPU, updated by _sync(): name => torch.Tensor
 
 #----------------------------------------------------------------------------
+
+# neptune logging
+_run = None
+
+@zero_only
+def enable_neptune(tags, config_dict):
+    import neptune
+    global _run
+    _run = neptune.init_run(
+        project="hope7happiness/Diffusion-RL",
+        tags=tags,
+    )
+    _run["parameters"] = config_dict
 
 def init_multiprocessing(rank, sync_device):
     r"""Initializes `torch_utils.training_stats` for collecting statistics
@@ -227,6 +249,15 @@ class Collector:
         `collector[name]` is a synonym for `collector.mean(name)`.
         """
         return self.mean(name)
+    
+    @zero_only
+    def log_neptune(self):
+        global _run
+        assert _run is not None, "Neptune run is not initialized. Call enable_neptune() first."
+        stats = self.as_dict()
+        for name, stat in stats.items():
+            _run[name].append(stat.mean)
+            
 
 #----------------------------------------------------------------------------
 

@@ -46,7 +46,37 @@ def training_loop(
     resume_kimg         = 0,        # Start from the given training progress.
     cudnn_benchmark     = True,     # Enable torch.backends.cudnn.benchmark?
     device              = torch.device('cuda'),
+    use_neptune         = True,    # Use neptune for logging
 ):
+    if use_neptune:
+        training_stats.enable_neptune(
+            tags=['training'],
+            config_dict={
+                "run_dir": run_dir,
+                "dataset_kwargs": dataset_kwargs,
+                "data_loader_kwargs": data_loader_kwargs,
+                "network_kwargs": network_kwargs,
+                "loss_kwargs": loss_kwargs,
+                "optimizer_kwargs": optimizer_kwargs,
+                "augment_kwargs": augment_kwargs,
+                "seed": seed,
+                "batch_size": batch_size,
+                "batch_gpu": batch_gpu,
+                "total_kimg": total_kimg,
+                "ema_halflife_kimg": ema_halflife_kimg,
+                "ema_rampup_ratio": ema_rampup_ratio,
+                "lr_rampup_kimg": lr_rampup_kimg,
+                "loss_scaling": loss_scaling,
+                "kimg_per_tick": kimg_per_tick,
+                "snapshot_ticks": snapshot_ticks,
+                "state_dump_ticks": state_dump_ticks,
+                "resume_pkl": resume_pkl,
+                "resume_state_dump": resume_state_dump,
+                "resume_kimg": resume_kimg,
+                "cudnn_benchmark": cudnn_benchmark,
+            }
+        )
+
     # Initialize.
     start_time = time.time()
     np.random.seed((seed * dist.get_world_size() + dist.get_rank()) % (1 << 31))
@@ -199,6 +229,8 @@ def training_loop(
                 stats_jsonl = open(os.path.join(run_dir, 'stats.jsonl'), 'at')
             stats_jsonl.write(json.dumps(dict(training_stats.default_collector.as_dict(), timestamp=time.time())) + '\n')
             stats_jsonl.flush()
+        # log to neptune
+        training_stats.default_collector.log_neptune()
         dist.update_progress(cur_nimg // 1000, total_kimg)
 
         # Update state.

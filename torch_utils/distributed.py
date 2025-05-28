@@ -8,6 +8,7 @@
 import os
 import torch
 from . import training_stats
+from .training_stats import get_rank
 
 #----------------------------------------------------------------------------
 
@@ -32,8 +33,6 @@ def init():
 
 #----------------------------------------------------------------------------
 
-def get_rank():
-    return torch.distributed.get_rank() if torch.distributed.is_initialized() else 0
 
 #----------------------------------------------------------------------------
 
