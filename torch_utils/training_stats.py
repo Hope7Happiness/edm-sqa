@@ -37,7 +37,7 @@ _sync_called    = False         # Has _sync() been called yet?
 _counters       = dict()        # Running counters on each device, updated by report(): name => device => torch.Tensor
 _cumulative     = dict()        # Cumulative counters on the CPU, updated by _sync(): name => torch.Tensor
 _images         = dict()        # Images reported by report_image(): name => PIL.Image
-_images_isnew   = dict()        # Image counters on each device, updated by report_image(): name => device => int
+_should_log     = dict()        # Image counters on each device, updated by report_image(): name => device => int
 
 #----------------------------------------------------------------------------
 
@@ -100,6 +100,8 @@ def report(name, value):
     Returns:
         The same `value` that was passed in.
     """
+    _should_log[name] = True
+    
     if name not in _counters:
         _counters[name] = dict()
 
@@ -137,7 +139,7 @@ def report0(name, value):
 @zero_only
 def report_image(name, image):
     _images[name] = image
-    _images_isnew[name] = True
+    _should_log[name] = True
 
 #----------------------------------------------------------------------------
 
@@ -270,13 +272,15 @@ class Collector:
         assert _run is not None, "Neptune run is not initialized. Call enable_neptune() first."
         stats = self.as_dict()
         for name, stat in stats.items():
-            _run[name].append(stat.mean)
+            if _should_log[name]:
+                _run[name].append(stat.mean)
+                _should_log[name] = False
         
         # log images
         for name in self.image_names():
-            if _images_isnew[name]:
+            if _should_log[name]:
                 _run[name].append(_images[name])
-                _images_isnew[name] = False
+                _should_log[name] = False
             
 
 #----------------------------------------------------------------------------
