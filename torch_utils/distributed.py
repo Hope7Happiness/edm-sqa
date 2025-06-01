@@ -56,3 +56,12 @@ def print0(*args, **kwargs):
         print(*args, **kwargs)
 
 #----------------------------------------------------------------------------
+
+def sequential_call(local_fn):
+    torch.distributed.barrier()
+    for rk in range(get_world_size()):
+        if get_rank() == rk:
+            print(f'Sequential call on rank {rk}', flush=True)
+            local_fn()
+            print(f'===========================', flush=True)
+        torch.distributed.barrier()

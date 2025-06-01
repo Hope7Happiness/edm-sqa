@@ -72,6 +72,7 @@ def parse_int_list(s):
 @click.option('--nosubdir',      help='Do not create a subdirectory for results',                   is_flag=True)
 @click.option('--tick',          help='How often to print progress', metavar='KIMG',                type=click.IntRange(min=1), default=50, show_default=True)
 @click.option('--snap',          help='How often to save snapshots', metavar='TICKS',               type=click.IntRange(min=1), default=50, show_default=True)
+@click.option('--online-eval', help='How often to run online evaluation', metavar='TICKS', type=click.IntRange(min=-1), default=200, show_default=True)
 @click.option('--dump',          help='How often to dump state', metavar='TICKS',                   type=click.IntRange(min=1), default=500, show_default=True)
 @click.option('--seed',          help='Random seed  [default: random]', metavar='INT',              type=int)
 @click.option('--transfer',      help='Transfer learning from network pickle', metavar='PKL|URL',   type=str)
@@ -189,9 +190,10 @@ def main(**kwargs):
         desc += f'-{opts.desc}'
 
     # Pick output directory.
-    if dist.get_rank() != 0:
-        c.run_dir = None
-    elif opts.nosubdir:
+    # if dist.get_rank() != 0:
+    #     c.run_dir = None
+    # elif opts.nosubdir:
+    if opts.nosubdir:
         c.run_dir = opts.outdir
     else:
         prev_run_dirs = []
@@ -201,9 +203,15 @@ def main(**kwargs):
         prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
         cur_run_id = max(prev_run_ids, default=-1) + 1
         c.run_dir = os.path.join(opts.outdir, f'{cur_run_id:05d}-{desc}')
-        assert not os.path.exists(c.run_dir)
-        
+
+        assert not os.path.exists(c.run_dir), c.run_dir
+    
+    dist.sequential_call(
+        lambda: print(f'Output directory: {c.run_dir}')
+    )
+    
     c.use_neptune = opts.useneptune
+    c.eval_ticks = opts.online_eval if opts.online_eval >= 0 else None
 
     # Print options.
     dist.print0()

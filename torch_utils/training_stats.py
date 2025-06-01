@@ -36,6 +36,8 @@ _sync_device    = None          # Device to use for multiprocess communication. 
 _sync_called    = False         # Has _sync() been called yet?
 _counters       = dict()        # Running counters on each device, updated by report(): name => device => torch.Tensor
 _cumulative     = dict()        # Cumulative counters on the CPU, updated by _sync(): name => torch.Tensor
+_images         = dict()        # Images reported by report_image(): name => PIL.Image
+_images_isnew   = dict()        # Image counters on each device, updated by report_image(): name => device => int
 
 #----------------------------------------------------------------------------
 
@@ -45,12 +47,13 @@ _run = None
 @zero_only
 def enable_neptune(tags, config_dict):
     import neptune
+    from neptune import utils as neptune_utils
     global _run
     _run = neptune.init_run(
         project="hope7happiness/Diffusion-RL",
         tags=tags,
     )
-    _run["parameters"] = config_dict
+    _run["parameters"] = neptune_utils.stringify_unsupported(config_dict)
 
 def init_multiprocessing(rank, sync_device):
     r"""Initializes `torch_utils.training_stats` for collecting statistics
@@ -131,6 +134,13 @@ def report0(name, value):
 
 #----------------------------------------------------------------------------
 
+@zero_only
+def report_image(name, image):
+    _images[name] = image
+    _images_isnew[name] = True
+
+#----------------------------------------------------------------------------
+
 class Collector:
     r"""Collects the scalars broadcasted by `report()` and `report0()` and
     computes their long-term averages (mean and standard deviation) over
@@ -164,6 +174,10 @@ class Collector:
         match the regular expression specified at construction time.
         """
         return [name for name in _counters if self._regex.fullmatch(name)]
+    
+    def image_names(self):
+        r"""Returns the names of all images reported so far."""
+        return [name for name in _images if self._regex.fullmatch(name)]
 
     def update(self):
         r"""Copies current values of the internal counters to the
@@ -257,6 +271,12 @@ class Collector:
         stats = self.as_dict()
         for name, stat in stats.items():
             _run[name].append(stat.mean)
+        
+        # log images
+        for name in self.image_names():
+            if _images_isnew[name]:
+                _run[name].append(_images[name])
+                _images_isnew[name] = False
             
 
 #----------------------------------------------------------------------------

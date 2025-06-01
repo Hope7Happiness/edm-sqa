@@ -19,6 +19,8 @@ import dnnlib
 from torch_utils import distributed as dist
 from torch_utils import training_stats
 from torch_utils import misc
+from .online_gen import sample_main, calc_fid_main
+import shutil
 
 #----------------------------------------------------------------------------
 
@@ -40,6 +42,7 @@ def training_loop(
     loss_scaling        = 1,        # Loss scaling factor for reducing FP16 under/overflows.
     kimg_per_tick       = 50,       # Interval of progress prints.
     snapshot_ticks      = 50,       # How often to save network snapshots, None = disable.
+    eval_ticks          = 200,      # How often to run evaluation, None = disable.
     state_dump_ticks    = 500,      # How often to dump training state, None = disable.
     resume_pkl          = None,     # Start from the given network snapshot, None = random initialization.
     resume_state_dump   = None,     # Start from the given training state, None = reset training state.
@@ -217,7 +220,45 @@ def training_loop(
                 with open(os.path.join(run_dir, f'network-snapshot-{cur_nimg//1000:06d}.pkl'), 'wb') as f:
                     pickle.dump(data, f)
             del data # conserve memory
-
+            
+        if (eval_ticks is not None) and (done or cur_tick % eval_ticks == 0):
+            assert run_dir is not None
+            dist.print0('run dir:', run_dir)
+            tmp_dir = os.path.join(run_dir, f'eval-{cur_nimg//1000:06d}')
+            
+            if dist.get_rank() == 0:
+                os.makedirs(tmp_dir, exist_ok=True)
+            
+            # FID_IMAGES = 5000 # debug
+            FID_IMAGES = 50000
+            
+            # DEBUG
+            # ema = pickle.load(open('edm-cifar10-32x32-uncond-vp.pkl', 'rb'))['ema'].to(device)
+            
+            sample_main(
+                ema_net=ema,
+                outdir=tmp_dir,
+                subdirs=True,
+                seeds=list(range(FID_IMAGES)),
+                class_idx=None,
+                max_batch_size=64,
+                # sampler kwargs
+            )
+            
+            # get some images for demo
+            if dist.get_rank() == 0:
+                demo_image = demo_images(tmp_dir)
+                training_stats.report_image('Eval/Gen', demo_image)
+            
+            # eval FID
+            fid = calc_fid_main(tmp_dir, 'fid-refs/cifar10-32x32.npz', num_expected=FID_IMAGES, seed=0, batch=64)
+            training_stats.report0('Eval/fid', fid)
+            
+            if dist.get_rank() == 0:
+                shutil.rmtree(tmp_dir)  # remove temporary directory
+            
+            torch.distributed.barrier()  # wait for all ranks to finish
+            
         # Save full dump of the training state.
         if (state_dump_ticks is not None) and (done or cur_tick % state_dump_ticks == 0) and cur_tick != 0 and dist.get_rank() == 0:
             torch.save(dict(net=net, optimizer_state=optimizer.state_dict()), os.path.join(run_dir, f'training-state-{cur_nimg//1000:06d}.pt'))
@@ -246,3 +287,13 @@ def training_loop(
     dist.print0('Exiting...')
 
 #----------------------------------------------------------------------------
+
+from PIL import Image
+
+def demo_images(image_dir):
+    pngs = [f'000000/0000{i:02d}.png' for i in range(100)]
+    merged = np.stack([Image.open(os.path.join(image_dir, png)).convert('RGB') for png in pngs], axis=0)
+    H, W, C = merged.shape[1:]
+    # make grid
+    grid = merged.reshape(10, 10, H, W, C).transpose(0, 2, 1, 3, 4).reshape(10 * H, 10 * W, C)
+    return Image.fromarray(grid, 'RGB')
