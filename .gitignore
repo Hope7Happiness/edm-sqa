@@ -7,3 +7,4 @@ fid-refs/
 env.sh
 .neptune/
 edm-cifar10-32x32-uncond-vp.pkl
+cur.log

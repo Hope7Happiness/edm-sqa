@@ -37,9 +37,9 @@ def sample_main(ema_net, outdir, subdirs, seeds, class_idx, max_batch_size, devi
     rank_batches = all_batches[dist.get_rank() :: dist.get_world_size()]
 
     # DEBUG
-    dist.sequential_call(
-        lambda: [print(f'\tBatch {i}: {batch.tolist()}') for i, batch in enumerate(rank_batches)]
-    )
+    # dist.sequential_call(
+    #     lambda: [print(f'\tBatch {i}: {batch.tolist()}') for i, batch in enumerate(rank_batches)]
+    # )
 
 
     # Loop over batches.

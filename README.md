@@ -1,5 +1,7 @@
 # EDM on CIFAR
 
+Environment: create from `environment-H100.yml`.
+
 0. Prepare Neptune token:
 
 ```shell
@@ -39,6 +41,10 @@ source env.sh
 torchrun --standalone --nproc_per_node=8 train.py --outdir=training-runs \
     --data=datasets/cifar10-32x32.zip --cond=0 --arch=ddpmpp
 ```
+
+Alternatively, use `bash train.sh`.
+
+**Note**: The current script will eval FID on flight, so you can skip step 5 for now.
 
 5. Eval FID
 
